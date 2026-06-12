@@ -17,170 +17,106 @@ src/services/persistenceService.ts
 src/services/combatService.ts
 ```
 
-> Do NOT modify files outside this list unless coordinating with the lead.
+## Requirements
 
-## Dependencies
+### `src/data/robots.ts`
 
-- **Phase 0** provides: shared TypeScript interfaces (`RobotDef`, `WeaponDef`, `UpgradeDef`, `SupportUnitDef`, `RobotStats`, etc.)
-
-## Detailed Requirements
-
-### Data Files
-
-#### `src/data/robots.ts`
-```typescript
-export const robots: RobotDef[] = [
-  {
-    id: 'titan',
-    name: 'Titan',
-    description: 'Balanced all-rounder mech. Reliable in any situation.',
-    baseStats: {
-      armour: 100,
-      shields: 80,
-      weaponDamage: 70,
-      targeting: 75,
-      repairSpeed: 60,
-      legCapacity: 30,
-      speed: 100, // pixels per second
-      hp: 500,
-    },
-    spriteKey: 'robot_titan',
-    unlockCost: 0, // starter robot
-  },
-  // Colossus: high armour, shields, HP; slow speed, lower weapon damage
-  // Vanguard: high speed, weapon damage, targeting; low armour, HP
-]
-```
-
-At least 3 robots. Titan is free/starter. Others may have unlock costs.
-
-#### `src/data/weapons.ts`
-```typescript
-export const weapons: WeaponDef[] = [
-  {
-    id: 'machine_gun',
-    name: 'Machine Gun',
-    category: 'machineGun',
-    slot: 'leftArm' | 'rightArm' | 'back',
-    weight: 5,
-    baseStats: { damage: 8, fireRate: 0.15, accuracy: 0.8 },
-    upgradeLevels: 5, // max upgrade level
-    spriteKey: 'weapon_machine_gun',
-    coinCost: 100,
-    mergeResult: 'heavy_machine_gun', // id of merge result, or null
-    mergeRequirements: ['machine_gun', 'machine_gun'], // two weapon IDs
-  },
-  // +10 more weapons across the 4 categories
-]
-```
-
-Weapon categories and target count for v1.0:
-- **Lasers** (3): Light Laser, Precision Laser, Heavy Laser
-- **Missile Systems** (3): Homing Missile, Dumb-Fire Rocket, Cluster Missile
-- **Machine Guns** (2): Machine Gun, Heavy Machine Gun
-- **Artillery** (2): Light Artillery, Heavy Artillery
-- **Merge-only** (2+): Advanced variants from merging
-
-#### `src/data/upgrades.ts`
-Tech tree definition — 6 systems, each with 3+ tiers:
+3 robots with distinct stat profiles. Export as `const robots: RobotDef[]`.
 
 ```typescript
-export const upgradeSystems: UpgradeSystem[] = [
-  {
-    id: 'legs',
-    name: 'Legs',
-    icon: 'legs',
-    description: 'Increases weapon weight capacity',
-    tiers: [
-      { level: 1, statBonus: { legCapacity: 5 }, coinCost: 0, researchTime: 0 }, // base
-      { level: 2, statBonus: { legCapacity: 10 }, coinCost: 200, researchTime: 30 },
-      { level: 3, statBonus: { legCapacity: 20 }, coinCost: 500, researchTime: 60 },
-      { level: 4, statBonus: { legCapacity: 35 }, coinCost: 1000, researchTime: 120 },
-    ],
-    prerequisiteSystem: null, // no prerequisite for first system
-  },
-  // Armour, Shields, Targeting, Nano Repair, Support Units
-]
+interface RobotDef {
+  id: string; name: string; description: string
+  baseStats: RobotStats
+  spriteKey: string; unlockCost: number
+}
+interface RobotStats {
+  armour: number; shields: number; weaponDamage: number
+  targeting: number; repairSpeed: number; legCapacity: number
+  speed: number; hp: number
+}
 ```
 
-Prerequisites example: Shields tier 2 requires Armour tier 1.
+- **Titan:** Balanced — all stats ~70-80, unlockCost=0 (starter)
+- **Colossus:** Heavy — high armour(120), shields(100), hp(700); low speed(70), weaponDamage(50)
+- **Vanguard:** Agile — high speed(140), weaponDamage(90), targeting(90); low armour(50), hp(350)
 
-#### `src/data/supportUnits.ts`
-```typescript
-export const supportUnits: SupportUnitDef[] = [
-  {
-    id: 'assault_tank',
-    name: 'Assault Tank',
-    type: 'tank',
-    stats: { hp: 200, damage: 15, fireRate: 1.0, speed: 50 },
-    coinCost: 500,
-    upgradeLevels: 3,
-    spriteKey: 'tank_assault',
-  },
-  // +1-2 more (defense tank, attack drone, support drone)
-]
-```
+### `src/data/weapons.ts`
 
-#### `src/data/balance.ts`
+10+ weapons across 4 categories, 3 slots.
+
+**Lasers (3):** Light Laser (left, damage=10, weight=3), Precision Laser (right, damage=15, weight=4), Heavy Laser (back, damage=35, weight=10)
+**Missiles (3):** Homing Missile (right, damage=12, weight=5), Dumb-Fire Rocket (back, damage=25, weight=8), Cluster Missile (back, damage=30, weight=12)
+**Machine Guns (2):** Machine Gun (left, damage=5, weight=3), Heavy MG (left, damage=8, weight=5)
+**Artillery (2):** Light Artillery (back, damage=40, weight=12), Heavy Artillery (back, damage=60, weight=18)
+**Merge-only (2+):** Plasma Cannon (merge Laser+Homing), Railgun (merge Heavy Laser+Heavy Art)
+
+Each weapon: `coinCost`, `upgradeLevels: 5`, `upgradeStatMultiplier: 0.15`, `mergeResult`/`mergeRequirements` as applicable.
+
+### `src/data/upgrades.ts`
+
+6 systems, each with 3-4 tiers. Prerequisites chain:
+- Legs (root, no prereq) → tiers increase weight capacity
+- Armour (requires Legs T1) → damage reduction
+- Shields (requires Armour T1) → shield HP + regen rate
+- Weapons (requires Legs T1) → weapon damage multiplier
+- Targeting (requires Weapons T1) → accuracy multiplier
+- Nano Repair (requires Legs T1) → repair speed
+- Support Units (requires Nano Repair T1) → unlock/upgrade unit stats
+
+### `src/data/supportUnits.ts`
+
+2-3 units:
+- Assault Tank (ground, offensive, cost=500)
+- Defense Tank (ground, defensive, cost=400)
+- Scout Drone (air, scout/harass, cost=600)
+
+### `src/data/balance.ts`
+
 ```typescript
 export const BALANCE = {
-  // Coin economy
   startingCoins: 100,
-  coinPerBattleWin: 50,
-  coinPerBattleLoss: 15,
-  
-  // Multipliers (per opponent difficulty)
+  coinPerBattleWin: 50, coinPerBattleLoss: 15,
   difficultyMultiplier: { easy: 0.5, medium: 1.0, hard: 1.5 },
-  
-  // Repair
-  baseRepairTime: 10, // seconds for full system repair at repairSpeed=1
-  
-  // Weapon upgrade
-  weaponUpgradeStatMultiplier: 0.15, // +15% per upgrade level
-  weaponUpgradeCostMultiplier: 1.5, // cost increases 1.5x per level
-  
-  // Limits
+  baseRepairTime: 10, // seconds
+  weaponUpgradeStatMultiplier: 0.15,
+  weaponUpgradeCostMultiplier: 1.5,
   maxWeaponUpgradeLevel: 5,
   maxRobotUpgradeTier: 4,
-} as const;
+  coinEarnRatePerSpellingWord: 5,
+  coinEarnRatePerMathProblem: 10,
+}
 ```
 
-### Services
-
-#### `economyService.ts`
+### `economyService.ts`
 ```typescript
-// Pure functions
 export function canAfford(coins: number, cost: number): boolean
-export function spend(coins: number, cost: number): number // returns new balance
+export function spend(coins: number, cost: number): number
 export function earn(coins: number, amount: number): number
 export function calculateBattleReward(won: boolean, difficulty: string): number
 export function calculateUpgradeCost(baseCost: number, currentTier: number): number
 ```
 
-#### `persistenceService.ts`
+### `persistenceService.ts`
 ```typescript
 export function saveGameState(state: GameState): void
 export function loadGameState(): GameState | null
 export function resetGameState(): void
-export function migrateSchemaVersion(data: unknown): GameState // handle future version bumps
 ```
-- Uses localStorage
-- GameState includes: coins, ownedWeapons[], unlockedUpgrades{}, ownedRobots[], equippedLoadout, supportUnits[]
-- Schema version field for future migration
+- localStorage with schema versioning
+- Full GameState: coins, ownedWeapons, unlockedUpgrades, ownedRobots, loadout, supportUnits
 
-#### `combatService.ts`
+### `combatService.ts`
 ```typescript
-// Simulates a battle result for display (not the real-time Phaser combat)
 export function simulateBattle(playerLoadout: Loadout, opponentRobot: RobotDef, difficulty: string): BattleResult
-// BattleResult = { won: boolean, damageDealt: number, damageTaken: number, systemsRepaired: number, coinsEarned: number }
 ```
+- Quick approximate calculation (not real-time Phaser)
+- Used for after-battle summary stats
 
 ## Acceptance Criteria
-- [ ] 3 robot definitions with distinct stat profiles
-- [ ] 10+ weapon definitions covering all 4 categories
-- [ ] Tech tree with 6 systems, each with 3-4 tiers, prerequisite chains
-- [ ] 2-3 support unit definitions
-- [ ] Economy balance constants defined and documented
-- [ ] All services are pure functions with no side effects (except persistence)
-- [ ] Persistence service saves/loads full game state from localStorage
-- [ ] Data files importable and type-safe
+- [ ] 3 robots with balanced stat profiles
+- [ ] 10+ weapons across 4 categories
+- [ ] Tech tree with 6 systems, prerequisites, 3-4 tiers each
+- [ ] 2-3 support units
+- [ ] All services pure functions with no side effects
+- [ ] Persistence saves/loads full game state with versioning
+- [ ] Data files type-safe, importable by other agents
